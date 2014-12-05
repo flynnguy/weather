@@ -1,13 +1,11 @@
-package main
+package weather
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 )
 
@@ -827,48 +825,18 @@ func check(e error) {
 	}
 }
 
-// This function goes out and saves the json data to a file so we don't have to make so many json calls while testing
-func readUrlToFile(url string) (err error) {
-	// Examples of json endpoints
-	// fmt.Sprintf("http://api.wunderground.com/api/%s/geolookup/q/autoip.json", API_KEY) // auto ip
-	// fmt.Sprintf("http://api.wunderground.com/api/%s/geolookup/q/07005.json" , API_KEY) // Lookup zip
-	// fmt.Sprintf("http://api.wunderground.com/api/%s/geolookup/q/EWR.json" , API_KEY)   // Lookup airport code
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Download new data? [y/n] ")
-	text, _ := reader.ReadString('\n')
-	switch text[:1] {
-	case "Y", "y":
-		fmt.Printf("%s\n", url)
-		resp, err := http.Get(url)
-		check(err)
-
-		defer resp.Body.Close()
-
-		body, err := ioutil.ReadAll(resp.Body)
-		check(err)
-
-		var ModePerm os.FileMode = 0777
-		err = ioutil.WriteFile("weather_data.json", body, ModePerm)
-		check(err)
-	}
-	return
-}
-
-func main() {
-	api_key_byte, err := ioutil.ReadFile("API_KEY.txt")
+func WeatherLookup(zip_code string) Weather {
+	api_key_byte, err := ioutil.ReadFile("API_KEY.txt") // Read the API_KEY in from a file since we don't want to store it in version control
 	check(err)
 	API_KEY := strings.Trim(string(api_key_byte), "\n")
-
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Zip Code: ")
-	zip_code, _ := reader.ReadString('\n')
 	zip_code = strings.Trim(zip_code, "\n")
-
 	url := fmt.Sprintf("http://api.wunderground.com/api/%s/alerts/almanac/astronomy/conditions/currenthurricane/forecast/forecast10day/hourly/hourly10day/tide/yesterday/q/geolookup/%s.json", API_KEY, zip_code)
-	err = readUrlToFile(url)
+
+	resp, err := http.Get(url)
 	check(err)
 
-	jsonStr, err := ioutil.ReadFile("weather_data.json")
+	defer resp.Body.Close()
+	jsonStr, err := ioutil.ReadAll(resp.Body)
 	check(err)
 
 	var w Weather
@@ -876,6 +844,5 @@ func main() {
 	if err != nil {
 		fmt.Println(err)
 	}
-	fmt.Printf("The weather for %s:\n", w.CurrentObservation.DisplayLocation.Full)
-	fmt.Printf("%s; %.2f F (%.2f C)\n", w.CurrentObservation.Weather, w.CurrentObservation.TempF, w.CurrentObservation.TempC)
+	return w
 }
